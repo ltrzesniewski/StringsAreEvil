@@ -80,11 +80,16 @@ namespace StringsAreEvil
                     Console.WriteLine("#14 ViaRawStream2");
                     ViaRawStreamWithSmallBuffer(new LineParserV14());
                 },
+                ["unsafe"] = () =>
+                {
+                    Console.WriteLine("#Unsafe");
+                    LineParserUnsafe.Process();
+                },
             };
 
 
 #if DEBUG
-            dict["14"]();
+            dict["unsafe"]();
             Environment.Exit(0);
 #endif
 
