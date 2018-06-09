@@ -63,7 +63,7 @@ namespace StringsAreEvil
             }
         }
 
-        private static int ParseInt(ref byte* ptr, byte* eol)
+        internal static int ParseInt(ref byte* ptr, byte* eol)
         {
             var multiplier = 1;
             var result = 0;
@@ -104,7 +104,7 @@ namespace StringsAreEvil
             return result * multiplier;
         }
 
-        private static decimal ParseDecimal(ref byte* ptr, byte* eol)
+        internal static decimal ParseDecimal(ref byte* ptr, byte* eol)
         {
             if (ptr >= eol)
                 ThrowFormatException();
@@ -178,6 +178,9 @@ namespace StringsAreEvil
 
             if (lastNonZero == null)
                 return negative ? -(decimal)mantissa : mantissa;
+
+            if (lastNonZero - mantissaStart > 19) // 19 = long.MaxValue.ToString().Length - 1 + 1 for the dot
+                ThrowFormatException();
 
             var scale = 1 + lastNonZero - fractionalPartStart;
             for (var p = fractionalPartStart; p <= lastNonZero; ++p)

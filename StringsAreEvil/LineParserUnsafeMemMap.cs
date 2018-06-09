@@ -51,137 +51,14 @@ namespace StringsAreEvil
 
                 ptr += 4;
 
-                var elementId = ParseInt(ref ptr, eol);
-                var vehicleId = ParseInt(ref ptr, eol);
-                var term = ParseInt(ref ptr, eol);
-                var mileage = ParseInt(ref ptr, eol);
-                var value = ParseDecimal(ref ptr, eol);
+                var elementId = LineParserUnsafe.ParseInt(ref ptr, eol);
+                var vehicleId = LineParserUnsafe.ParseInt(ref ptr, eol);
+                var term = LineParserUnsafe.ParseInt(ref ptr, eol);
+                var mileage = LineParserUnsafe.ParseInt(ref ptr, eol);
+                var value = LineParserUnsafe.ParseDecimal(ref ptr, eol);
                 var valueHolder = new ValueHolderAsStruct(elementId, vehicleId, term, mileage, value);
                 //_list.Add(valueHolder);
             }
-        }
-
-        private static int ParseInt(ref byte* ptr, byte* eol)
-        {
-            var multiplier = 1;
-            var result = 0;
-
-            if (ptr >= eol)
-                ThrowFormatException();
-
-            if (*ptr == '-')
-            {
-                ++ptr;
-                multiplier = -1;
-            }
-
-            var digitStart = ptr;
-
-            while (true)
-            {
-                if (ptr >= eol)
-                    break;
-
-                var c = *ptr++;
-
-                if (c >= '0' && c <= '9')
-                {
-                    result = result * 10 + (c - '0');
-                    continue;
-                }
-
-                if (c == ',' || c == '\r' || c == '\n')
-                    break;
-
-                ThrowFormatException();
-            }
-
-            if (ptr == digitStart || ptr - digitStart > 9) // 9 = int.MaxValue.ToString().Length - 1
-                ThrowFormatException();
-
-            return result * multiplier;
-        }
-
-        private static decimal ParseDecimal(ref byte* ptr, byte* eol)
-        {
-            if (ptr >= eol)
-                ThrowFormatException();
-
-            var negative = false;
-
-            if (ptr[0] == '-')
-            {
-                ++ptr;
-                negative = true;
-            }
-
-            var mantissa = 0UL;
-            var mantissaStart = ptr;
-
-            while (true)
-            {
-                if (ptr >= eol)
-                    break;
-
-                var c = *ptr++;
-
-                if (c >= '0' && c <= '9')
-                {
-                    mantissa = mantissa * 10 + (ulong)(c - '0');
-                    continue;
-                }
-
-                if (c == '.')
-                    goto fractionalPart;
-
-                if (c == ',' || c == '\r' || c == '\n')
-                    break;
-
-                ThrowFormatException();
-            }
-
-            if (ptr == mantissaStart || ptr - mantissaStart > 18) // 18 = long.MaxValue.ToString().Length - 1
-                ThrowFormatException();
-
-            return negative ? -(decimal)mantissa : mantissa;
-
-            fractionalPart:
-
-            var fractionalPartStart = ptr;
-            byte* lastNonZero = null;
-
-            while (true)
-            {
-                if (ptr >= eol)
-                    break;
-
-                var c = *ptr;
-                if (c >= '0' && c <= '9')
-                {
-                    if (c != '0')
-                        lastNonZero = ptr;
-
-                    ++ptr;
-                    continue;
-                }
-
-                if (c == ',' || c == '\r' || c == '\n')
-                {
-                    ++ptr;
-                    break;
-                }
-
-                ThrowFormatException();
-            }
-
-            if (lastNonZero == null)
-                return negative ? -(decimal)mantissa : mantissa;
-
-            var scale = 1 + lastNonZero - fractionalPartStart;
-            for (var p = fractionalPartStart; p <= lastNonZero; ++p)
-                mantissa = mantissa * 10 + (ulong)(*p - '0');
-
-            return new decimal((int)mantissa, (int)(mantissa >> 32), 0, negative, (byte)scale);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
