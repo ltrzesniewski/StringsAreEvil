@@ -50,6 +50,7 @@
   <ItemGroup>
     <Compile Include="ILineParser.cs" />
     <Compile Include="LineParserUnsafe.cs" />
+    <Compile Include="LineParserUnsafeMemMap.cs" />
     <Compile Include="LineParserV01.cs" />
     <Compile Include="LineParserV02.cs" />
     <Compile Include="LineParserV03.cs" />

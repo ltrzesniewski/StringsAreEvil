@@ -85,6 +85,11 @@ namespace StringsAreEvil
                     Console.WriteLine("#Unsafe");
                     LineParserUnsafe.Process();
                 },
+                ["unsafeMM"] = () =>
+                {
+                    Console.WriteLine("#UnsafeMM");
+                    LineParserUnsafeMemMap.Process();
+                },
             };
 
 
