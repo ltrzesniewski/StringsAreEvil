@@ -8,8 +8,8 @@ namespace StringsAreEvil
 {
     internal unsafe class LineParserUnsafe
     {
-        private readonly AsciiStreamReader _reader;
         private readonly List<ValueHolderAsStruct> _list = new List<ValueHolderAsStruct>();
+        private readonly AsciiStreamReader _reader;
 
         private const uint Mno = (byte)',' << 24 | (byte)'O' << 16 | (byte)'N' << 8 | (byte)'M';
 
@@ -191,136 +191,136 @@ namespace StringsAreEvil
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowFormatException() => throw new FormatException("Invalid value");
-    }
 
-    public readonly struct AsciiStringView
-    {
-        public readonly byte[] Buffer;
-        public readonly int Offset;
-        public readonly int Length;
-
-        public AsciiStringView(byte[] buffer, int offset, int length)
+        private readonly struct AsciiStringView
         {
-            Buffer = buffer;
-            Offset = offset;
-            Length = length;
-        }
+            public readonly byte[] Buffer;
+            public readonly int Offset;
+            public readonly int Length;
 
-        public override string ToString() => Buffer != null ? Encoding.ASCII.GetString(Buffer, Offset, Length) : string.Empty;
-    }
-
-    internal unsafe class AsciiStreamReader : IDisposable
-    {
-        private readonly Stream _stream;
-        private byte[] _buffer = new byte[4096];
-        private int _nextLinePos;
-        private int _bufFillPos;
-        private bool _end;
-
-        public AsciiStreamReader(Stream stream)
-        {
-            _stream = stream;
-        }
-
-        public void Dispose()
-        {
-            _end = true;
-            _nextLinePos = 0;
-            _bufFillPos = 0;
-
-            _stream.Dispose();
-        }
-
-        public bool ReadLine(out AsciiStringView result)
-        {
-            var offset = _nextLinePos;
-            var idx = offset;
-
-            for (; idx < _bufFillPos; ++idx)
+            public AsciiStringView(byte[] buffer, int offset, int length)
             {
-                if (_buffer[idx] != '\n')
-                    continue;
-
-                goto success;
+                Buffer = buffer;
+                Offset = offset;
+                Length = length;
             }
 
-            if (_end)
-                goto end;
+            public override string ToString() => Buffer != null ? Encoding.ASCII.GetString(Buffer, Offset, Length) : string.Empty;
+        }
 
-            ShiftBuffer();
-            idx -= offset;
-            offset = 0;
+        private class AsciiStreamReader : IDisposable
+        {
+            private readonly Stream _stream;
+            private byte[] _buffer = new byte[4096];
+            private int _nextLinePos;
+            private int _bufFillPos;
+            private bool _end;
 
-            while (true)
+            public AsciiStreamReader(Stream stream)
             {
-                if (idx == _bufFillPos && !FillBuffer())
-                {
-                    _end = true;
+                _stream = stream;
+            }
 
-                    if (offset == idx)
-                        goto end;
+            public void Dispose()
+            {
+                _end = true;
+                _nextLinePos = 0;
+                _bufFillPos = 0;
+
+                _stream.Dispose();
+            }
+
+            public bool ReadLine(out AsciiStringView result)
+            {
+                var offset = _nextLinePos;
+                var idx = offset;
+
+                for (; idx < _bufFillPos; ++idx)
+                {
+                    if (_buffer[idx] != '\n')
+                        continue;
 
                     goto success;
                 }
 
-                if (_buffer[idx] != '\n')
+                if (_end)
+                    goto end;
+
+                ShiftBuffer();
+                idx -= offset;
+                offset = 0;
+
+                while (true)
                 {
-                    ++idx;
-                    continue;
+                    if (idx == _bufFillPos && !FillBuffer())
+                    {
+                        _end = true;
+
+                        if (offset == idx)
+                            goto end;
+
+                        goto success;
+                    }
+
+                    if (_buffer[idx] != '\n')
+                    {
+                        ++idx;
+                        continue;
+                    }
+
+                    goto success;
                 }
 
-                goto success;
-            }
+                success:
+                _nextLinePos = idx + 1;
+                var length = idx - offset;
+                if (length > 0 && _buffer[idx - 1] == '\r')
+                    --length;
 
-            success:
-            _nextLinePos = idx + 1;
-            var length = idx - offset;
-            if (length > 0 && _buffer[idx - 1] == '\r')
-                --length;
+                result = new AsciiStringView(_buffer, offset, length);
+                return true;
 
-            result = new AsciiStringView(_buffer, offset, length);
-            return true;
-
-            end:
-            result = default;
-            return false;
-        }
-
-        private void ShiftBuffer()
-        {
-            if (_bufFillPos > _nextLinePos)
-            {
-                fixed (byte* buf = &_buffer[0])
-                {
-                    Buffer.MemoryCopy(buf + _nextLinePos, buf, _buffer.Length, _bufFillPos - _nextLinePos);
-                }
-            }
-
-            _bufFillPos -= _nextLinePos;
-            _nextLinePos = 0;
-        }
-
-        private bool FillBuffer()
-        {
-            if (_bufFillPos == _buffer.Length)
-            {
-                var newBuf = new byte[_buffer.Length * 2];
-
-                fixed (byte* src = &_buffer[0])
-                fixed (byte* dst = &newBuf[0])
-                {
-                    Buffer.MemoryCopy(src, dst, newBuf.Length, _buffer.Length);
-                }
-
-                _buffer = newBuf;
-            }
-
-            var read = _stream.Read(_buffer, _bufFillPos, _buffer.Length - _bufFillPos);
-            if (read == 0)
+                end:
+                result = default;
                 return false;
+            }
 
-            _bufFillPos += read;
-            return true;
+            private void ShiftBuffer()
+            {
+                if (_bufFillPos > _nextLinePos)
+                {
+                    fixed (byte* buf = &_buffer[0])
+                    {
+                        Buffer.MemoryCopy(buf + _nextLinePos, buf, _buffer.Length, _bufFillPos - _nextLinePos);
+                    }
+                }
+
+                _bufFillPos -= _nextLinePos;
+                _nextLinePos = 0;
+            }
+
+            private bool FillBuffer()
+            {
+                if (_bufFillPos == _buffer.Length)
+                {
+                    var newBuf = new byte[_buffer.Length * 2];
+
+                    fixed (byte* src = &_buffer[0])
+                    fixed (byte* dst = &newBuf[0])
+                    {
+                        Buffer.MemoryCopy(src, dst, newBuf.Length, _buffer.Length);
+                    }
+
+                    _buffer = newBuf;
+                }
+
+                var read = _stream.Read(_buffer, _bufFillPos, _buffer.Length - _bufFillPos);
+                if (read == 0)
+                    return false;
+
+                _bufFillPos += read;
+                return true;
+            }
         }
     }
 }

@@ -10,13 +10,20 @@ namespace StringsAreEvil
     internal unsafe class LineParserUnsafeMemMap
     {
         private readonly List<ValueHolderAsStruct> _list = new List<ValueHolderAsStruct>();
-        private MemoryMappedCsvReader _reader;
+        private readonly byte* _endPtr;
+        private byte* _linePtr;
 
         private const uint Mno = (byte)',' << 24 | (byte)'O' << 16 | (byte)'N' << 8 | (byte)'M';
 
         private LineParserUnsafeMemMap(MemoryMappedViewAccessor accessor)
         {
-            _reader = new MemoryMappedCsvReader(accessor);
+            _linePtr = null;
+            accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref _linePtr);
+
+            if (_linePtr == null)
+                throw new InvalidOperationException();
+
+            _endPtr = _linePtr + accessor.Capacity;
         }
 
         public static void Process()
@@ -41,7 +48,7 @@ namespace StringsAreEvil
 
         private void Parse()
         {
-            while (_reader.ReadLine(out var line))
+            while (ReadLine(out var line))
             {
                 var ptr = line.Start;
                 var eol = ptr + line.Length;
@@ -61,62 +68,45 @@ namespace StringsAreEvil
             }
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowFormatException() => throw new FormatException("Invalid value");
-    }
-
-    public readonly unsafe struct UnsafeAsciiStringView
-    {
-        public readonly byte* Start;
-        public readonly int Length;
-
-        public UnsafeAsciiStringView(byte* start, int length)
+        private bool ReadLine(out UnsafeAsciiStringView result)
         {
-            Start = start;
-            Length = length;
-        }
+            var start = _linePtr;
 
-        public override string ToString() => Start != null ? Encoding.ASCII.GetString(Start, Length) : string.Empty;
-    }
-
-    internal unsafe struct MemoryMappedCsvReader
-    {
-        private byte* _ptr;
-        private readonly byte* _endPtr;
-
-        public MemoryMappedCsvReader(MemoryMappedViewAccessor accessor)
-        {
-            _ptr = null;
-            accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref _ptr);
-
-            if (_ptr == null)
-                throw new InvalidOperationException();
-
-            _endPtr = _ptr + accessor.Capacity;
-        }
-
-        public bool ReadLine(out UnsafeAsciiStringView result)
-        {
-            var start = _ptr;
-
-            while (_ptr < _endPtr)
+            while (_linePtr < _endPtr)
             {
-                if (*_ptr++ == '\n')
+                if (*_linePtr++ == '\n')
                     break;
             }
 
-            if (_ptr == start)
+            if (_linePtr == start)
             {
                 result = default;
                 return false;
             }
 
-            var length = (int)(_ptr - start);
+            var length = (int)(_linePtr - start);
             if (length > 0 && start[length - 1] == '\r')
                 --length;
 
             result = new UnsafeAsciiStringView(start, length);
             return true;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowFormatException() => throw new FormatException("Invalid value");
+
+        private readonly struct UnsafeAsciiStringView
+        {
+            public readonly byte* Start;
+            public readonly int Length;
+
+            public UnsafeAsciiStringView(byte* start, int length)
+            {
+                Start = start;
+                Length = length;
+            }
+
+            public override string ToString() => Start != null ? Encoding.ASCII.GetString(Start, Length) : string.Empty;
         }
     }
 }
