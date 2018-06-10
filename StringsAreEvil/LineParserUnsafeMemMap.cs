@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace StringsAreEvil
@@ -53,7 +52,7 @@ namespace StringsAreEvil
                 var ptr = line.Start;
                 var eol = ptr + line.Length;
 
-                if (*(uint*)ptr != Mno)
+                if (line.Length < 4 || *(uint*)ptr != Mno)
                     continue;
 
                 ptr += 4;
@@ -91,9 +90,6 @@ namespace StringsAreEvil
             result = new UnsafeAsciiStringView(start, length);
             return true;
         }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowFormatException() => throw new FormatException("Invalid value");
 
         private readonly struct UnsafeAsciiStringView
         {

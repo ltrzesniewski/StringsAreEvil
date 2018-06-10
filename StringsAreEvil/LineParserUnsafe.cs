@@ -47,7 +47,7 @@ namespace StringsAreEvil
                     var ptr = pBuf + line.Offset;
                     var eol = ptr + line.Length;
 
-                    if (*(uint*)ptr != Mno)
+                    if (line.Length < 4 || *(uint*)ptr != Mno)
                         continue;
 
                     ptr += 4;
